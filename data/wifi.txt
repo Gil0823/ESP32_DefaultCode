@@ -1,5 +1,0 @@
-<SSID1> <PW>
-<SSID2> <PW>
-<SSID3> <PW>
-<SSID4> <PW>
-<SSID5> <PW>
