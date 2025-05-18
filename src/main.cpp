@@ -7,6 +7,7 @@
 #include <Network_config.h>
 #include <LED_handler.h>
 #include <esp_camera.h>
+#include <base64.h>
 #include "WifiCam.hpp"
 #define FOR(i, b, e) for(int i = b; i < e; i++)
 
@@ -14,6 +15,7 @@
 
 esp32cam::Resolution initialResolution;
 WebServer server(80);
+String encoded;
 
 // 1. 네트워크 연결 되면 5초마다 2번 빠르게 점멸
 // 2. WiFi 정보는 LIFFS에 저장
@@ -54,6 +56,7 @@ void capturePhotoSave() { // capture a photo and save to spiffs
             Serial.println("Failed to open file in writing mode");
         }
         else {
+            encoded = base64::encode(fb->buf, fb->len);
             file.write(fb->buf, fb->len); // payload (image), payload length
             Serial.printf("fb->len: %d\n", fb->len);
             
@@ -72,6 +75,29 @@ void capturePhotoSave() { // capture a photo and save to spiffs
     } while ( !ok );
 }
 
+bool sendLargeBase64MQTT() {
+    if (!mqtt_client.beginPublish("status", encoded.length(), false)) {
+        Serial.println("MQTT beginPublish failed");
+        return false;
+    }
+
+    const int chunkSize = 512;
+    for (size_t i = 0; i < encoded.length(); i += chunkSize) {
+        size_t len = std::min((size_t)chunkSize, encoded.length() - i);
+        size_t written = mqtt_client.write((const uint8_t*)(encoded.c_str() + i), len);
+        if (written != len) {
+            Serial.println("MQTT chunk write failed");
+            mqtt_client.endPublish();
+            return false;
+        }
+    }
+
+    mqtt_client.endPublish();
+    Serial.println("Base64 image sent via MQTT");
+    return true;
+}
+
+
 void setup() {
     Serial.begin(115200); // 시리얼 통신 초기화
 
@@ -87,7 +113,6 @@ void setup() {
 
         cfg.setPins(pins::AiThinker);
         // cfg.setResolution(initialResolution);
-        
 
         bool ok = Camera.begin(cfg);
         if (!ok) {
@@ -146,6 +171,10 @@ void loop() {
         }
         if (recv == "shot") {
             capturePhotoSave();
+            
+            Serial.printf("encoded.length(): %d\n", encoded.length());
+            
+            sendLargeBase64MQTT();
         }
     }
     

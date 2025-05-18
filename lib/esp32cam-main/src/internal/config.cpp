@@ -77,7 +77,7 @@ Config::setPins(const Pins& pins) {
 Config&
 Config::setCustom() {
   m_cfg->fb_location = CAMERA_FB_IN_PSRAM;
-  m_cfg->frame_size = FRAMESIZE_SVGA;
+  m_cfg->frame_size = FRAMESIZE_VGA;
   m_cfg->pixel_format = PIXFORMAT_JPEG;
   m_cfg->jpeg_quality = 10;
   m_cfg->fb_count = 2;
