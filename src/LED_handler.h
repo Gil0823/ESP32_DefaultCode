@@ -10,6 +10,7 @@
 #include <Arduino.h>
 #include <SimpleTimer.h>
 #include <HW_config.h>
+#define BUILTIN_LED 4
 #define dW digitalWrite
 #define NOT_USE_BLINK -1
 

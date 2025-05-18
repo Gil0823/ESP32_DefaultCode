@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include <LED_handler.h>
 
-#define BUILTIN_LED 2
+#define BUILTIN_LED 4
 #define dW digitalWrite
 
 void hw_init() {

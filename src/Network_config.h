@@ -43,7 +43,7 @@ class Network_Handler {
         Wifi_info scaned_list[32];
         String mqtt_recv;
         bool is_recv;
-        bool isConnected;  // WiFi객체를 써도 되지만, 명시적으로 관리하기 위해 상태변수를 생성
+        bool _isConnected;  // WiFi객체를 써도 되지만, 명시적으로 관리하기 위해 상태변수를 생성
         bool isConnecting;  // 연결 시도 중을 명시적으로 표현하기 위해 생성
         bool isDEBUG_mode;
         int16_t wifi_cnt;
@@ -86,10 +86,12 @@ class Network_Handler {
         bool isScanComplete() { return 0 <= wifi_cnt; }
         
         // WiFi가 예기치 않게 접속 해제 됐는지 확인
-        bool isUnexpectedDisconnectd() { return isConnected && !WiFi.isConnected(); }
+        bool isUnexpectedDisconnectd() { return _isConnected && !WiFi.isConnected(); }
         
         // WiFi 스캔 중 인지 확인
         bool isScanning() { return WiFi.scanComplete() == -1; }
+        
+        bool isConnected() { return _isConnected; }
         
         // MQTT브로커 서버 설정
         void setMQTT();
@@ -114,7 +116,7 @@ void Network_Handler::init() {
     connect_timeout_Timer.setInterval(5000);
     mqtt_client.setClient(espclient);
     mqtt_client.setCallback(nullptr);
-    isConnected = false;
+    _isConnected = false;
     isConnecting = false;
     
     // 초기화 했으니 스캔 시작
@@ -273,7 +275,7 @@ void Network_Handler::run() {
         WiFi.mode(WIFI_OFF);
         
         // 명시적으로 접속 해제를 표시
-        isConnected = false;
+        _isConnected = false;
         
         current_info.ssid = "";
         current_info.password= "";
@@ -299,7 +301,7 @@ void Network_Handler::run() {
     if (isScanComplete()) {
         print_all_scan_results();
         
-        if (!isConnected) begin_network_setup();
+        if (!_isConnected) begin_network_setup();
         
         // 스캔데이터 초기화
         WiFi.scanDelete();
@@ -335,7 +337,7 @@ void Network_Handler::run() {
             // 5초에 100ms씩 2번 점멸
             led.set(5000, 100, 2);
             
-            isConnected = true;
+            _isConnected = true;
             isConnecting = false;
         }
     }
