@@ -15,8 +15,8 @@
 #include <WiFiclientSecure.h>
 #include <SimpleTimer.h>
 #include <PubSubclient.h>
-#include <LED_handler.h>
 #include <SimpleFTPServer.h>
+
 #define FOR(i, b, e) for(int i = b; i < e; i++)
 
 #define AUTH_WRONG -1
@@ -26,8 +26,6 @@ void _callback(FtpOperation ftpOperation, unsigned int freeSpace, unsigned int t
 void _transferCallback(FtpTransferOperation ftpOperation, const char* name, unsigned int transferredSize);
 void mqtt_callback(char* topic, uint8_t* payload, unsigned int length);
 
-WiFiClientSecure espclient;
-PubSubClient mqtt_client;
 FtpServer ftpSrv;
 
 typedef struct Wifi_info {
@@ -51,6 +49,9 @@ class Network_Handler {
         SimpleTimer connectingTimer;
         SimpleTimer reconnectMQTT_Timer;
         SimpleTimer connect_timeout_Timer;
+
+        WiFiClientSecure espclient;
+        PubSubClient mqtt_client;
         
     public:
         Network_Handler() = default;
@@ -93,6 +94,9 @@ class Network_Handler {
         
         // MQTT브로커 서버 설정
         void setMQTT();
+
+        // mqtt publish
+        void publish(String topic, String msg);
           
         // non-blocking 실행
         void run();
@@ -200,7 +204,9 @@ bool Network_Handler::begin_network_setup() {
     if (find_ssid == "NULL") {
         Serial.println("!!!! 사용가능한 와이파이 없음 !!!!");
         
+        #ifdef LED_HANDLER_H 
         led.set(2000, 50, 5);
+        #endif
         
         // 스캔데이터 초기화
         WiFi.scanDelete();
@@ -221,7 +227,9 @@ bool Network_Handler::begin_network_setup() {
     
     isConnecting = true;  // 연결 중을 명시적으로 표현
     
+    #ifdef LED_HANDLER_H 
     led.set(100, NOT_USE_BLINK);
+    #endif
     
     return true;
 }
@@ -258,6 +266,10 @@ void Network_Handler::setMQTT() {
     mqtt_client.setCallback(mqtt_callback);
     reconnect();
 }
+
+void Network_Handler::publish(String topic, String msg) {
+    mqtt_client.publish(topic.c_str(), msg.c_str());
+}
     
 void Network_Handler::run() {
     wifi_cnt = WiFi.scanComplete();
@@ -266,7 +278,9 @@ void Network_Handler::run() {
     if (isUnexpectedDisconnectd()) {
         Serial.printf("[AP-OFF] %s → AP전원 꺼짐\n", current_info.ssid.c_str());
         
+        #ifdef LED_HANDLER_H 
         led.set(2000, 50, 5);
+        #endif
 
         // 완전한 중단
         WiFi.disconnect(true, true);
@@ -289,7 +303,9 @@ void Network_Handler::run() {
             
             WiFi.scanNetworks(true);
             
+            #ifdef LED_HANDLER_H 
             led.set(500, NOT_USE_BLINK);  // 점멸
+            #endif
         }
         
         reScanTimer.reset();
@@ -304,7 +320,6 @@ void Network_Handler::run() {
         // 스캔데이터 초기화
         WiFi.scanDelete();
     }
-    
     
     // 연결 시도 중 일때
     if (isConnecting) {
@@ -332,8 +347,10 @@ void Network_Handler::run() {
                 Serial.println("LittleFS opened!");
             }
             
+            #ifdef LED_HANDLER_H 
             // 5초에 100ms씩 2번 점멸
             led.set(5000, 100, 2);
+            #endif
             
             isConnected = true;
             isConnecting = false;
@@ -357,7 +374,9 @@ void Network_Handler::run() {
         
         isConnecting = false;  // 타임아웃이므로 다시 false
         
+        #ifdef LED_HANDLER_H 
         led.set(2000, 50, 5);  // 점멸
+        #endif
         
         connect_timeout_Timer.reset();
     } 

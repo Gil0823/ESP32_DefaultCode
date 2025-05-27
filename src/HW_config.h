@@ -10,7 +10,9 @@
 void hw_init() {
     pinMode(BUILTIN_LED, OUTPUT); dW(BUILTIN_LED, LOW);
     
+    #ifdef LED_HANDLER_H
     led.init();
+    #endif
 }
 
 #endif
