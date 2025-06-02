@@ -88,6 +88,7 @@ void loop() {
         
     }
     
+    cam_streamer.run();
     net.run();
     #ifdef LED_HANDLER_H
     led.run();
