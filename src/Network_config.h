@@ -23,6 +23,7 @@
 #define AUTH_WRONG -1
 #define FAILED -1
 #define MQTT_MSG_QUEUE_SIZE 4
+#define MQTT_MSG_CHUNK_SIZE 512
 
 void _callback(FtpOperation ftpOperation, unsigned int freeSpace, unsigned int totalSpace);
 void _transferCallback(FtpTransferOperation ftpOperation, const char* name, unsigned int transferredSize);
@@ -113,7 +114,9 @@ class Network_Handler {
 
         // mqtt publish
         void publish(String topic, String msg);
-          
+        
+        void publish(String topic, String *msg);
+        
         // non-blocking 실행
         void run();
     
@@ -123,6 +126,15 @@ Network_Handler& Network_Handler::GetInstance() {
     static Network_Handler instance;
     
     return instance;
+}
+
+// 와이파이가 연결되었을 때 호출 시키고 싶은 함수를 등록 ( 반환형: void, 인자: void )
+void Network_Handler::reg_connected_callback(std::function<void()> cb_func) {
+    onConnect_cb_list.push_back(cb_func);
+}
+
+void Network_Handler::reg_disconnected_callback(std::function<void()> cb_func) {
+    onDisconnect_cb_list.push_back(cb_func);
 }
 
 // 초기화
@@ -321,6 +333,56 @@ void Network_Handler::publish(String topic, String msg) {
         Serial.printf("[메시지 저장] Broker 서버 연결 시 전송합니다!\n");
         
         pending_msgs.push({topic, msg});
+    }
+    catch (const char* err) {
+        Serial.printf("[메시지 드랍] 사유: %s\n", err);
+    }
+}
+
+void Network_Handler::publish(String topic, String *msg) {
+    if (mqtt_client.connected()) {
+        char name_prefix[32]; memset(name_prefix, '\0', 32);
+        
+        // 현재 기기의 이름을 접두사로 해서 전송합니다
+        sprintf(name_prefix, "[%s] ", env.getName().c_str());
+        
+        mqtt_client.beginPublish(topic.c_str(), msg->length()+strlen(name_prefix), false);
+        mqtt_client.print(name_prefix);
+        
+        if (MQTT_MSG_CHUNK_SIZE < msg->length()) {
+            Serial.printf("메시지 크기 큼!!! 분할해서 송신!!! (%d)\n", msg->length());
+            
+            for (size_t i = 0; i < msg->length(); i += MQTT_MSG_CHUNK_SIZE) {
+                int len = std::min((size_t)MQTT_MSG_CHUNK_SIZE, msg->length() - i);
+                
+                int written = mqtt_client.write((const uint8_t*)(msg->c_str() + i), len);
+                
+                if (written != len) {
+                    Serial.println("MQTT chunk write failed");
+                    mqtt_client.endPublish();
+                    
+                    return;
+                }
+            }
+            
+            return;
+        }
+        
+        mqtt_client.print(msg->c_str());
+        mqtt_client.endPublish();
+
+        return;
+    } 
+    
+    try {
+        if (MQTT_MSG_QUEUE_SIZE <= pending_msgs.size())     
+            throw "큐의 크기를 초과 합니다";
+        if (256 < msg->length())       
+            throw "보관할 메시지가 너무 깁니다";
+        
+        Serial.printf("[메시지 저장] Broker 서버 연결 시 전송합니다!\n");
+        
+        pending_msgs.push({topic, *msg});
     }
     catch (const char* err) {
         Serial.printf("[메시지 드랍] 사유: %s\n", err);

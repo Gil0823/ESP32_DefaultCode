@@ -5,6 +5,7 @@
 #include <env.h>
 #include <HW_config.h>
 #include <Network_config.h>
+#include <cam_streaming_handler.h>
 #define FOR(i, b, e) for(int i = b; i < e; i++)
 
 // 1. 네트워크 연결 되면 5초마다 2번 빠르게 점멸
@@ -18,8 +19,12 @@
 
 void setup() {
     Serial.begin(115200); // 시리얼 통신 초기화
-
+    
     hw_init();
+    
+    net.reg_connected_callback(std::bind(&Cam_Stream_Handler::init,   &cam_streamer));
+    net.reg_disconnected_callback(std::bind(&Cam_Stream_Handler::end, &cam_streamer));
+   
     env.init();
     net.init();
 }
@@ -60,6 +65,11 @@ void loop() {
             ESP.restart();
             
             return;
+        }
+        if (recv == "shot") {
+            cam_streamer.capturePhotoSave();
+            
+            cam_streamer.sendLargeBase64MQTT();
         }
         
     }

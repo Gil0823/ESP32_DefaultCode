@@ -55,7 +55,7 @@ void LED_handler::set(int main_interval, int blink_cnt) {
     this->cur_blink_cnt = this->blink_cnt = NOT_USE_BLINK;
     
     stat = false;
-    dW(BUILTIN_LED, LOW);
+    dW(LED_BUILTIN, LOW);
 }
 
 void LED_handler::set(int main_interval, int blink_interval, int blink_cnt) {
@@ -64,7 +64,7 @@ void LED_handler::set(int main_interval, int blink_interval, int blink_cnt) {
     this->cur_blink_cnt = this->blink_cnt = blink_cnt*2;
     
     stat = false;
-    dW(BUILTIN_LED, LOW);
+    dW(LED_BUILTIN, LOW);
 }
 
 void LED_handler::run() {           
@@ -86,7 +86,7 @@ void LED_handler::run() {
         blinkTimer.reset();
     }
     
-    if(prev_stat != stat) dW(BUILTIN_LED, stat);
+    if(prev_stat != stat) dW(LED_BUILTIN, stat);
     
     prev_stat = stat;
 }
