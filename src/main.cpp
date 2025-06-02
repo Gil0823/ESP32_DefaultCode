@@ -55,6 +55,13 @@ void loop() {
 
             return;
         }
+        // 재부팅 지시
+        if (recv == "reboot") {
+            ESP.restart();
+            
+            return;
+        }
+        
     }
     
     net.run();

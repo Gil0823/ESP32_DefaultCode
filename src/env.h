@@ -39,6 +39,7 @@ class EnvData {
         void print_wifi_list();
         void print_mqtt();
         String fileLoad();
+        String getName();
         
 };
 
@@ -73,6 +74,8 @@ String EnvData::fileLoad() {
 }
 
 void EnvData::init() {
+    name = "NULL";
+    
     String load_data = fileLoad();
     
     DeserializationError err = deserializeJson(raw, load_data);
@@ -119,6 +122,10 @@ void EnvData::print_mqtt() {
     Serial.println(mqtt.user_id);
     Serial.print("User Password: ");
     Serial.println(mqtt.user_password);
+}
+
+String EnvData::getName() {
+    return name;
 }
 
 EnvData& env = EnvData::GetInstance();
