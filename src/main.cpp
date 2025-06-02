@@ -70,6 +70,20 @@ void loop() {
             cam_streamer.capturePhotoSave();
             
             cam_streamer.sendLargeBase64MQTT();
+            
+            return;
+        }
+        if (recv == "rtsp") {
+            char tmp[64]; memset(tmp, '\0', 64);
+            
+            sprintf(tmp, "RTSP스트리밍 주소: rtsp://%s:%d/mjpeg/1", 
+                    WiFi.localIP().toString().c_str(), 
+                    cam_streamer.getPort()
+            );
+            
+            net.publish("status", tmp);
+            
+            return;
         }
         
     }
