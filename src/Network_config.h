@@ -17,13 +17,16 @@
 #include <PubSubclient.h>
 #include <SimpleFTPServer.h>
 #include <queue>
-
 #define FOR(i, b, e) for(int i = b; i < e; i++)
 
 #define AUTH_WRONG -1
 #define FAILED -1
 #define MQTT_MSG_QUEUE_SIZE 4
 #define MQTT_MSG_CHUNK_SIZE 512
+
+const char* ntpServer          = "pool.ntp.org";
+const long  gmtOffset_sec      = 9*3600;
+const int   daylightOffset_sec = 0;
 
 void _callback(FtpOperation ftpOperation, unsigned int freeSpace, unsigned int totalSpace);
 void _transferCallback(FtpTransferOperation ftpOperation, const char* name, unsigned int transferredSize);
@@ -115,7 +118,10 @@ class Network_Handler {
         // mqtt publish
         void publish(String topic, String msg);
         
-        void publish(String topic, String *msg);
+        void publish(String topic, String *msg);\
+        
+        // WiFi및 네트워크 설정들을 완전히 초기화
+        void reset_network_setup();
         
         // non-blocking 실행
         void run();
@@ -126,6 +132,15 @@ Network_Handler& Network_Handler::GetInstance() {
     static Network_Handler instance;
     
     return instance;
+}
+
+// 와이파이가 연결되었을 때 호출 시키고 싶은 함수를 등록 ( 반환형: void, 인자: void )
+void Network_Handler::reg_connected_callback(std::function<void()> cb_func) {
+    onConnect_cb_list.push_back(cb_func);
+}
+
+void Network_Handler::reg_disconnected_callback(std::function<void()> cb_func) {
+    onDisconnect_cb_list.push_back(cb_func);
 }
 
 // 초기화
@@ -379,6 +394,16 @@ void Network_Handler::publish(String topic, String *msg) {
         Serial.printf("[메시지 드랍] 사유: %s\n", err);
     }
 }
+
+void Network_Handler::reset_network_setup() {
+    WiFi.disconnect(true, true);
+    WiFi.mode(WIFI_OFF);
+    
+    espclient.stop();
+    espclient = WiFiClientSecure();  // 새 인스턴스 할당 ← ★ 중요!
+    espclient.setInsecure();
+    
+}
     
 void Network_Handler::run() {
     wifi_cnt = WiFi.scanComplete();
@@ -397,11 +422,7 @@ void Network_Handler::run() {
         }
 
         // 완전한 중단
-        WiFi.disconnect(true, true);
-        WiFi.mode(WIFI_OFF);
-        espclient.stop();
-        espclient = WiFiClientSecure();  // 새 인스턴스 할당 ← ★ 중요!
-        espclient.setInsecure();
+        reset_network_setup();
         
         // 명시적으로 접속 해제를 표시
         isConnected = false;
@@ -457,6 +478,9 @@ void Network_Handler::run() {
             // MQTT브로커 서버 연결 시작
             setMQTT();
             
+            // NTP서버 설정
+            configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
+            
             // 등록한 콜백함수 실행 ( 연결됐을 때 )
             for(std::function<void()> fn_ptr : onConnect_cb_list) {
                 fn_ptr();
@@ -484,8 +508,7 @@ void Network_Handler::run() {
         Serial.printf("\n%s - 연결 타임아웃.\n", current_info.ssid.c_str());
 
         // 완전한 중단
-        WiFi.disconnect(true, true);
-        WiFi.mode(WIFI_OFF);
+        reset_network_setup();
 
         // 가장 중요한 과정으로, 현재 비밀번호가 틀린 WiFi정보를 비활성화
         Serial.printf("[AUTH-FAIL] %s → 영구 차단\n", current_info.ssid);
